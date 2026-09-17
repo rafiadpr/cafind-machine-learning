@@ -48,3 +48,24 @@ DEFAULT_OUTPUT_FILE = DATA_PROCESSED / "cafes_with_vibes.csv"
 VIBE_LEXICONS: Dict[str, List[str]] = {
     "WFC": [
         "wfc", "nugas", "colokan", "stopkontak", "stop kontak", "wifi kencang", "wifi cepat",
+        "laptop", "kerja", "meja luas", "kursi nyaman", "tenang", "hening", "coworking",
+        "charger", "fokus", "buka laptop"
+    ],
+    "Aesthetic": [
+        "estetik", "aesthetic", "instagramable", "instagenic", "foto", "cantik", "cakep",
+        "kece", "interior", "dekorasi", "vintage", "industrial", "minimalis", "ootd",
+        "spot foto", "bagus banget", "konsep unik"
+    ],
+    "Outdoor": [
+        "outdoor", "luar ruangan", "taman", "halaman", "rooftop", "asri", "sejuk",
+        "smoking area", "angin sepoi", "pepohonan", "pemandangan", "sunset", "alam",
+        "breeze", "teras"
+    ],
+    "Affordable": [
+        "murah", "terjangkau", "ramah kantong", "kantong mahasiswa", "hemat", "pas di kantong",
+        "ramah dompet", "harga bersahabat", "worth it", "porsi banyak", "murmer", "merakyat"
+    ]
+}
+
+
+# ─── Synthetic Data Generator (Fallback) ──────────────────────────────────────
