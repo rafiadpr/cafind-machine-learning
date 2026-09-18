@@ -78,3 +78,60 @@ SLANG_MAP = {
     "gue": "aku",
     "gw": "aku",
     "krn": "karena",
+    "karna": "karena",
+    "krena": "karena",
+    "klo": "kalau",
+    "klu": "kalau",
+    "kl": "kalau",
+    "hrs": "harus",
+    "sm": "sama",
+    "bisa di": "bisa",
+    "bs": "bisa",
+    "yg": "yang",
+    "dgn": "dengan",
+    "dg": "dengan",
+    "utk": "untuk",
+    "tdk": "tidak",
+    "jg": "juga",
+    "lg": "lagi",
+    "sdg": "sedang",
+    "dr": "dari",
+    "pd": "pada",
+    "ttg": "tentang",
+    "org": "orang",
+    "tmpt": "tempat",
+    "tmpat": "tempat",
+    "wkwk": "",           # Laughter filler — remove
+    "wkwkwk": "",
+    "hehe": "",
+    "hihi": "",
+    "haha": "",
+    "kwkwkw": "",
+}
+
+# ─── Emoji Sentiment Markers ──────────────────────────────────────────────────
+# Replace common emojis with text sentiment signals instead of stripping them.
+# This preserves sentiment information for the ABSA model.
+
+EMOJI_MAP = {
+    "😍": " sangat_suka ",
+    "😊": " senang ",
+    "🥰": " sangat_suka ",
+    "👍": " bagus ",
+    "❤️": " suka ",
+    "💕": " suka ",
+    "✨": " bagus ",
+    "🔥": " populer ",
+    "😋": " enak ",
+    "☕": " kopi ",
+    "😢": " sedih ",
+    "😞": " kecewa ",
+    "👎": " buruk ",
+    "😡": " marah ",
+    "💸": " mahal ",
+    "😱": " terkejut ",
+    "🤔": " ragu ",
+}
+
+# ─── Text Cleaning Functions ───────────────────────────────────────────────────
+
