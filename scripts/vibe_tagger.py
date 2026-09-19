@@ -69,3 +69,32 @@ VIBE_LEXICONS: Dict[str, List[str]] = {
 
 
 # ─── Synthetic Data Generator (Fallback) ──────────────────────────────────────
+def generate_sample_reviews() -> pd.DataFrame:
+    """Generates synthetic review records with characteristic atmosphere phrases."""
+    sample_data = [
+        ("c_001", "Kopi Titik Koma", "Tempatnya asik banget buat WFC, colokan banyak dan wifi kenceng pol!"),
+        ("c_001", "Kopi Titik Koma", "Bisa nugas berjam-jam dengan tenang, kopinya enak."),
+        ("c_002", "Karsa Garden Cafe", "Outdoor luas banget dengan pepohonan asri, enak sore-sore nongkrong di taman."),
+        ("c_002", "Karsa Garden Cafe", "Area luar sejuk, pemandangannya asri dan smoking area nyaman."),
+        ("c_003", "Kopi Kalibrasi", "Interior minimalis estetik banget! Banyak spot foto buat ootd."),
+        ("c_003", "Kopi Kalibrasi", "Konsepnya cakep, sangat instagramable dan modern."),
+        ("c_004", "Warung Kopi Rakyat", "Harganya murah meriah cocok buat kantong mahasiswa. Porsi banyak dan hemat."),
+        ("c_004", "Warung Kopi Rakyat", "Tempat ngopi paling terjangkau, ramah kantong banget."),
+        ("c_005", "Ruang Temu Studio", "Bisa nugas sekalian foto-foto karena estetik. Colokan ada di tiap meja."),
+    ]
+    return pd.DataFrame(sample_data, columns=["cafe_id", "cafe_name", "review_text"])
+
+
+# ─── Tag Extraction Logic ─────────────────────────────────────────────────────
+def compile_regex_patterns(lexicons: Dict[str, List[str]]) -> Dict[str, List[re.Pattern]]:
+    """Compiles keyword terms into regex patterns with word boundary constraints."""
+    compiled = {}
+    for vibe, keywords in lexicons.items():
+        patterns = [
+            re.compile(r"\b" + re.escape(kw) + r"\b", re.IGNORECASE)
+            for kw in keywords
+        ]
+        compiled[vibe] = patterns
+    return compiled
+
+
