@@ -68,3 +68,33 @@ def generate_sample_dataset(n_samples: int = 120) -> pd.DataFrame:
 def load_features(input_path: Optional[Path] = None) -> Tuple[pd.DataFrame, np.ndarray, List[str]]:
     """Loads cafe records and prepares standardized numerical feature matrix."""
     file_path = input_path or DEFAULT_INPUT_FILE
+    if file_path.exists():
+        logger.info(f"Loading data from: {file_path}")
+        df = pd.read_csv(file_path)
+    else:
+        logger.warning(f"File '{file_path}' not found. Using representative sample dataset.")
+        df = generate_sample_dataset()
+
+    feature_cols = []
+    # Identify available numeric features
+    for col in ["rating", "price_level", "sentiment_score", "review_count"]:
+        if col in df.columns:
+            feature_cols.append(col)
+
+    if not feature_cols:
+        df = generate_sample_dataset()
+        feature_cols = ["rating", "price_level", "sentiment_score", "review_count"]
+
+    df_clean = df.dropna(subset=feature_cols).copy()
+
+    # Preprocessing: log-transform review_count to prevent high-popularity bias
+    if "review_count" in df_clean.columns:
+        df_clean["log_review_count"] = np.log1p(df_clean["review_count"])
+        feature_cols_scaled = [c if c != "review_count" else "log_review_count" for c in feature_cols]
+    else:
+        feature_cols_scaled = feature_cols
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(df_clean[feature_cols_scaled])
+
+    logger.info(f"Feature matrix shape: {X_scaled.shape} using features: {feature_cols_scaled}")
