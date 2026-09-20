@@ -22,12 +22,19 @@ async def first_text(locator, default=''):
     return (await locator.first.inner_text()).strip() if await locator.count() else default
 
 async def collect_links(page, limit):
-    links = []
+    links = {}
     for link in await page.locator('a[href*="/maps/place/"]').all():
         href = await link.get_attribute('href')
-        if href:
-            links.append(href)
-    return links[:limit]
+        if not href:
+            continue
+        parsed = urlsplit(href)
+        if parsed.scheme != 'https' or parsed.hostname != 'www.google.com':
+            continue
+        key = parsed.path.rstrip('/')
+        links.setdefault(key, href)
+        if len(links) >= limit:
+            break
+    return list(links.values())
 
 async def run_scraper(args):
     from playwright.async_api import async_playwright, TimeoutError as PageTimeout
