@@ -135,3 +135,61 @@ EMOJI_MAP = {
 
 # ─── Text Cleaning Functions ───────────────────────────────────────────────────
 
+def normalize_unicode(text: str) -> str:
+    """Normalize unicode characters (handle composed/decomposed forms)."""
+    return unicodedata.normalize("NFKC", text)
+
+
+def replace_emojis(text: str) -> str:
+    """Replace emojis with sentiment text markers before stripping."""
+    for emoji, replacement in EMOJI_MAP.items():
+        text = text.replace(emoji, replacement)
+    # Strip any remaining unicode emoji (outside BMP)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    return text
+
+
+def normalize_slang(text: str) -> str:
+    """Replace informal Indonesian words with their formal equivalents.
+    
+    We apply word-boundary matching to avoid replacing substrings.
+    e.g. 'dr' should not replace 'drama'.
+    """
+    words = text.split()
+    return " ".join(SLANG_MAP.get(w.lower(), w) for w in words)
+
+
+def clean_text(text: str) -> str:
+    """Full cleaning pipeline for a single review text.
+    
+    Order matters:
+    1. Unicode normalization
+    2. Emoji → text sentiment markers
+    3. Lowercase
+    4. Slang normalization
+    5. Remove URLs, emails, phone numbers
+    6. Remove special characters (keep Indonesian letters, numbers, spaces)
+    7. Collapse whitespace
+    """
+    if not isinstance(text, str) or not text.strip():
+        return ""
+
+    text = normalize_unicode(text)
+    text = replace_emojis(text)
+    text = text.lower()
+    text = normalize_slang(text)
+
+    # Remove URLs
+    text = re.sub(r"https?://\S+|www\.\S+", " ", text)
+    # Remove email addresses
+    text = re.sub(r"\S+@\S+\.\S+", " ", text)
+    # Remove phone numbers
+    text = re.sub(r"(\+62|08)\d{8,11}", " ", text)
+    # Keep Indonesian letters (a-z, accented), digits, and basic punctuation
+    text = re.sub(r"[^a-z0-9\s.,!?'\-]", " ", text)
+    # Collapse multiple spaces/newlines
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
