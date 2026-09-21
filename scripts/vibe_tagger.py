@@ -98,3 +98,16 @@ def compile_regex_patterns(lexicons: Dict[str, List[str]]) -> Dict[str, List[re.
     return compiled
 
 
+def extract_vibes_for_text(text: str, compiled_patterns: Dict[str, List[re.Pattern]]) -> Dict[str, int]:
+    """Counts matching keyword occurrences per vibe category in a single text."""
+    if not isinstance(text, str):
+        return {v: 0 for v in compiled_patterns}
+
+    text_lower = text.lower()
+    counts = {}
+    for vibe, patterns in compiled_patterns.items():
+        match_count = sum(len(p.findall(text_lower)) for p in patterns)
+        counts[vibe] = match_count
+    return counts
+
+
