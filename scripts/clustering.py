@@ -98,3 +98,33 @@ def load_features(input_path: Optional[Path] = None) -> Tuple[pd.DataFrame, np.n
     X_scaled = scaler.fit_transform(df_clean[feature_cols_scaled])
 
     logger.info(f"Feature matrix shape: {X_scaled.shape} using features: {feature_cols_scaled}")
+    return df_clean, X_scaled, feature_cols_scaled
+
+
+# ─── Distance Metric Implementations ──────────────────────────────────────────
+def compute_minkowski_l1_distances(X: np.ndarray, centers: np.ndarray) -> np.ndarray:
+    """
+    Computes Manhattan (Minkowski distance with p=1 / ord=1) between samples and centroids.
+    Formula: D(x, c) = sum(|x_i - c_i|) for each dimension i.
+    """
+    # Pairwise Manhattan distance matrix: (n_samples, n_clusters)
+    return pairwise_distances(X, centers, metric="minkowski", p=1)
+
+
+class ManhattanKMeans:
+    """
+    K-Means clustering optimized for Manhattan (L1 norm / Minkowski p=1) metric.
+    Uses median centroid updates for robust cluster representations with outliers.
+    """
+    def __init__(self, n_clusters: int = 4, max_iter: int = 300, random_state: int = 42):
+        self.n_clusters = n_clusters
+        self.max_iter = max_iter
+        self.random_state = random_state
+        self.cluster_centers_: Optional[np.ndarray] = None
+        self.labels_: Optional[np.ndarray] = None
+
+    def fit_predict(self, X: np.ndarray) -> np.ndarray:
+        np.random.seed(self.random_state)
+        n_samples = X.shape[0]
+
+        # Initialize centers with random sample points
