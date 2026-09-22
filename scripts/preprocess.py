@@ -193,3 +193,38 @@ def clean_text(text: str) -> str:
     return text
 
 
+def compute_text_stats(text: str) -> dict:
+    """Compute basic statistics useful for filtering low-quality reviews."""
+    words = text.split()
+    return {
+        "word_count": len(words),
+        "char_count": len(text),
+        "avg_word_len": round(sum(len(w) for w in words) / max(len(words), 1), 2),
+    }
+
+# ─── Main Pipeline ────────────────────────────────────────────────────────────
+
+def preprocess_cafes(df_cafes: pd.DataFrame) -> pd.DataFrame:
+    """Clean cafe metadata — deduplicate and fill missing coordinates."""
+    log.info(f"Processing {len(df_cafes):,} cafes...")
+
+    # Deduplicate by name (keep highest review_count if duplicated)
+    df_cafes = (
+        df_cafes
+        .sort_values("review_count", ascending=False)
+        .drop_duplicates(subset="name", keep="first")
+        .reset_index(drop=True)
+    )
+
+    # Clean name and address
+    df_cafes["name"] = df_cafes["name"].str.strip().str.title()
+    df_cafes["address"] = df_cafes["address"].fillna("").str.strip()
+    df_cafes["categories"] = df_cafes["categories"].fillna("").str.lower().str.strip()
+
+    # Flag cafes with missing coordinates (will need geocoding)
+    df_cafes["needs_geocoding"] = df_cafes["latitude"].isna() | df_cafes["longitude"].isna()
+    missing_coords = df_cafes["needs_geocoding"].sum()
+    if missing_coords > 0:
+        log.warning(f"  {missing_coords} cafes have missing coordinates — flag 'needs_geocoding' set")
+
+    log.info(f"  Cafes after dedup: {len(df_cafes):,}")
