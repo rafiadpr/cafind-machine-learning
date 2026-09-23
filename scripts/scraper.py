@@ -36,6 +36,34 @@ async def collect_links(page, limit):
             break
     return list(links.values())
 
+def parse_coords(url):
+    match = re.search(r'!3d(-?[0-9.]+)!4d(-?[0-9.]+)', url)
+    if not match:
+        match = re.search(r'@(-?[0-9.]+),(-?[0-9.]+)', url)
+    return (float(match[1]), float(match[2])) if match else (None, None)
+
+def parse_rating(text):
+    match = re.search(r'([0-5](?:[.,][0-9])?)', text)
+    return float(match[1].replace(',', '.')) if match else None
+
+async def extract_cafe(page, query):
+    name = await first_text(page.locator('h1'))
+    if not name:
+        raise ValueError('Cafe name is missing')
+    latitude, longitude = parse_coords(page.url)
+    rating_text = await first_text(page.locator('div.F7nice'))
+    return dict(cafe_id=hashlib.sha256(name.encode()).hexdigest()[:16], name=name,
+                address=await first_text(page.locator('[data-item-id="address"]')),
+                latitude=latitude, longitude=longitude, rating=parse_rating(rating_text),
+                review_count=None, source_url=page.url, source_query=query,
+                scraped_at=datetime.now(timezone.utc).isoformat())
+
+def write_csv(path, fields, rows):
+    with path.open('w', newline='', encoding='utf-8') as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
 async def run_scraper(args):
     from playwright.async_api import async_playwright, TimeoutError as PageTimeout
     async with async_playwright() as playwright:
@@ -48,10 +76,16 @@ async def run_scraper(args):
             await page.wait_for_timeout(1500)
             links = await collect_links(page, args.max_cafes)
 
+            cafes, reviews = [], []
+            for link in links:
+                await page.goto(link, wait_until='domcontentloaded')
+                await page.wait_for_timeout(1000)
+                cafe = await extract_cafe(page, args.query)
+                cafes.append(cafe)
+
             args.output_dir.mkdir(parents=True, exist_ok=True)
-            (args.output_dir / 'cafe_links.json').write_text(
-                json.dumps(links, ensure_ascii=False, indent=2), encoding='utf-8')
-            return links
+            write_csv(args.output_dir / 'cafes.csv', CAFE_FIELDS, cafes)
+            return {'cafes': len(cafes), 'reviews': len(reviews)}
 
         finally:
             await browser.close()
