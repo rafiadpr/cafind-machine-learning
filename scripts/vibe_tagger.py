@@ -111,3 +111,49 @@ def extract_vibes_for_text(text: str, compiled_patterns: Dict[str, List[re.Patte
     return counts
 
 
+def aggregate_cafe_vibes(
+    df_reviews: pd.DataFrame,
+    text_col: str = "review_text",
+    cafe_id_col: str = "cafe_id",
+    min_keyword_hits: int = 1
+) -> pd.DataFrame:
+    """Aggregates review vibe signals and tags cafes meeting mention criteria."""
+    compiled_patterns = compile_regex_patterns(VIBE_LEXICONS)
+    vibe_scores: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    cafe_names: Dict[str, str] = {}
+
+    logger.info(f"Analyzing {len(df_reviews)} review texts for vibe indicators...")
+
+    for _, row in df_reviews.iterrows():
+        cid = str(row.get(cafe_id_col, "unknown"))
+        if "cafe_name" in row and row["cafe_name"]:
+            cafe_names[cid] = row["cafe_name"]
+
+        review = str(row.get(text_col, ""))
+        hits = extract_vibes_for_text(review, compiled_patterns)
+        for vibe, count in hits.items():
+            vibe_scores[cid][vibe] += count
+
+    # Form summary records
+    records = []
+    for cid, scores in vibe_scores.items():
+        # Determine assigned tags based on frequency threshold
+        assigned_tags = [vibe for vibe, count in scores.items() if count >= min_keyword_hits]
+        top_vibe = max(scores.items(), key=lambda x: x[1])[0] if any(scores.values()) else "Neutral"
+
+        records.append({
+            "cafe_id": cid,
+            "cafe_name": cafe_names.get(cid, "Cafe " + cid),
+            "vibe_tags": json.dumps(assigned_tags),
+            "primary_vibe": top_vibe,
+            "score_wfc": scores["WFC"],
+            "score_aesthetic": scores["Aesthetic"],
+            "score_outdoor": scores["Outdoor"],
+            "score_affordable": scores["Affordable"],
+        })
+
+    df_result = pd.DataFrame(records)
+    logger.info(f"Processed vibe tags for {len(df_result)} cafes.")
+    return df_result
+
+
