@@ -128,3 +128,38 @@ class ManhattanKMeans:
         n_samples = X.shape[0]
 
         # Initialize centers with random sample points
+        init_indices = np.random.choice(n_samples, self.n_clusters, replace=False)
+        self.cluster_centers_ = X[init_indices].copy()
+
+        for iteration in range(self.max_iter):
+            # Compute Minkowski L1 distances using ord=1
+            dist_matrix = compute_minkowski_l1_distances(X, self.cluster_centers_)
+            labels = np.argmin(dist_matrix, axis=1)
+
+            # Update centroids using component-wise median (L1 median property)
+            new_centers = np.zeros_like(self.cluster_centers_)
+            for k in range(self.n_clusters):
+                cluster_members = X[labels == k]
+                if len(cluster_members) > 0:
+                    new_centers[k] = np.median(cluster_members, axis=0)
+                else:
+                    new_centers[k] = X[np.random.choice(n_samples)]
+
+            # Check convergence
+            if np.allclose(self.cluster_centers_, new_centers, atol=1e-4):
+                logger.debug(f"Manhattan K-Means converged in {iteration + 1} iterations.")
+                break
+
+            self.cluster_centers_ = new_centers
+
+        self.labels_ = labels
+        return labels
+
+
+# ─── Training & Evaluation Routine ────────────────────────────────────────────
+def train_and_evaluate(
+    X: np.ndarray,
+    df: pd.DataFrame,
+    features: List[str],
+    k: int = 4,
+    metric: str = "euclidean"
