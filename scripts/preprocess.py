@@ -228,3 +228,33 @@ def preprocess_cafes(df_cafes: pd.DataFrame) -> pd.DataFrame:
         log.warning(f"  {missing_coords} cafes have missing coordinates — flag 'needs_geocoding' set")
 
     log.info(f"  Cafes after dedup: {len(df_cafes):,}")
+    return df_cafes
+
+
+def preprocess_reviews(df_reviews: pd.DataFrame) -> pd.DataFrame:
+    """Clean review text and compute quality metrics."""
+    log.info(f"Processing {len(df_reviews):,} reviews...")
+
+    tqdm.pandas(desc="Cleaning review text")
+
+    # Apply full text cleaning pipeline
+    df_reviews["text_clean"] = df_reviews["text"].progress_apply(clean_text)
+
+    # Compute text stats for quality filtering
+    stats = df_reviews["text_clean"].apply(compute_text_stats).apply(pd.Series)
+    df_reviews = pd.concat([df_reviews, stats], axis=1)
+
+    # Filter: remove reviews that are too short (< 5 words) or empty after cleaning
+    before = len(df_reviews)
+    df_reviews = df_reviews[df_reviews["word_count"] >= 5].reset_index(drop=True)
+    log.info(f"  Removed {before - len(df_reviews):,} too-short reviews (< 5 words)")
+
+    # Normalize rating to float
+    df_reviews["rating"] = pd.to_numeric(df_reviews["rating"], errors="coerce")
+
+    log.info(f"  Reviews after cleaning: {len(df_reviews):,}")
+    log.info(f"  Avg review length: {df_reviews['word_count'].mean():.1f} words")
+
+    return df_reviews
+
+
