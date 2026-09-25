@@ -64,6 +64,27 @@ def write_csv(path, fields, rows):
         writer.writeheader()
         writer.writerows(rows)
 
+async def visible_reviews(page, cafe_id):
+    rows = []
+    for card in await page.locator('[data-review-id]').all():
+        review_id = await card.get_attribute('data-review-id')
+        text = await first_text(card.locator('.wiI7pd'))
+        if not review_id or not text:
+            continue
+        stars = card.locator('[aria-label*="star"], [aria-label*="bintang"]').first
+        label = await stars.get_attribute('aria-label') if await stars.count() else ''
+        rows.append(dict(review_id=review_id, cafe_id=cafe_id, text=text,
+                         rating=parse_rating(label or ''),
+                         scraped_at=datetime.now(timezone.utc).isoformat()))
+    return rows
+
+async def collect_reviews(page, cafe_id, limit):
+    tab = page.get_by_role('tab', name=re.compile('ulasan|review', re.I))
+    if await tab.count():
+        await tab.first.click()
+        await page.wait_for_timeout(1200)
+    return (await visible_reviews(page, cafe_id))[:limit]
+
 async def run_scraper(args):
     from playwright.async_api import async_playwright, TimeoutError as PageTimeout
     async with async_playwright() as playwright:
@@ -82,9 +103,11 @@ async def run_scraper(args):
                 await page.wait_for_timeout(1000)
                 cafe = await extract_cafe(page, args.query)
                 cafes.append(cafe)
+                reviews.extend(await collect_reviews(page, cafe['cafe_id'], args.reviews_per_cafe))
 
             args.output_dir.mkdir(parents=True, exist_ok=True)
             write_csv(args.output_dir / 'cafes.csv', CAFE_FIELDS, cafes)
+            write_csv(args.output_dir / 'reviews.csv', REVIEW_FIELDS, reviews)
             return {'cafes': len(cafes), 'reviews': len(reviews)}
 
         finally:
