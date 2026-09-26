@@ -258,3 +258,43 @@ def preprocess_reviews(df_reviews: pd.DataFrame) -> pd.DataFrame:
     return df_reviews
 
 
+def create_absa_template(df_reviews: pd.DataFrame) -> pd.DataFrame:
+    """
+    Create the ABSA training template CSV.
+
+    Format expected by IndoBERT fine-tuning (train_absa.py):
+        review_id, cafe_id, text_clean, aspect, sentiment, confidence
+
+    At this stage, 'aspect' and 'sentiment' are empty — they will be filled
+    either by manual labeling (data/labeled/) or by weak supervision rules.
+
+    Common ABSA aspects for cafes (domain-specific):
+        - wifi         (speed, stability)
+        - harga        (price, value for money)
+        - suasana      (ambience, atmosphere)
+        - pelayanan    (service, staff)
+        - makanan      (food quality, taste)
+        - minuman/kopi (coffee quality)
+        - tempat       (seating, space, capacity)
+        - kebersihan   (cleanliness)
+        - lokasi       (accessibility, parking)
+
+    These aspects come from analysis of common Indonesian cafe review keywords.
+    """
+    df_absa = df_reviews[["review_id", "cafe_id", "text_clean", "rating"]].copy()
+    df_absa["aspect"] = ""        # To be labeled
+    df_absa["sentiment"] = ""     # To be labeled
+    df_absa["confidence"] = None  # Model confidence (filled during inference)
+    return df_absa
+
+
+def run() -> None:
+    DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
+
+    # ── Load raw data ──
+    if not CAFES_CSV.exists() or not REVIEWS_CSV.exists():
+        log.error(
+            "Raw data not found! Run the scraper first:\n"
+            "  python scripts/scraper.py\n"
+            "Or load a Kaggle dataset:\n"
+            "  python scripts/dataset_loader.py --input data/raw/your_dataset.csv"
