@@ -163,3 +163,38 @@ def train_and_evaluate(
     features: List[str],
     k: int = 4,
     metric: str = "euclidean"
+) -> Tuple[np.ndarray, float, pd.DataFrame]:
+    """Fits K-Means with specified distance metric and outputs performance statistics."""
+    metric = metric.lower()
+
+    if metric == "manhattan":
+        model = ManhattanKMeans(n_clusters=k, random_state=42)
+        labels = model.fit_predict(X)
+        # Silhouette Score calculated with Manhattan metric
+        sil_score = silhouette_score(X, labels, metric="manhattan")
+    elif metric == "euclidean":
+        model = KMeans(n_clusters=k, init="k-means++", random_state=42, n_init=10)
+        labels = model.fit_predict(X)
+        sil_score = silhouette_score(X, labels, metric="euclidean")
+    else:
+        raise ValueError(f"Unsupported metric '{metric}'. Choose 'euclidean' or 'manhattan'.")
+
+    # Generate Cluster Profiles
+    df_result = df.copy()
+    df_result["cluster"] = labels
+
+    summary = df_result.groupby("cluster")[features].mean()
+    summary["cafe_count"] = df_result.groupby("cluster").size()
+
+    return labels, sil_score, summary
+
+
+def compare_metrics(X: np.ndarray, df: pd.DataFrame, features: List[str], k_range: range = range(2, 6)):
+    """Compares clustering effectiveness across Euclidean and Manhattan distance metrics."""
+    logger.info("=" * 60)
+    logger.info(f"{'K':<4} | {'Metric':<12} | {'Silhouette Score':<18} | {'Status':<10}")
+    logger.info("=" * 60)
+
+    for k in k_range:
+        # Euclidean
+        _, sil_euclid, _ = train_and_evaluate(X, df, features, k=k, metric="euclidean")
