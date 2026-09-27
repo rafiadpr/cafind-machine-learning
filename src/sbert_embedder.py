@@ -40,3 +40,26 @@ class SBERTModelManager:
                     cls._model = SentenceTransformer(model_name)
                     logger.info('SBERT model successfully initialized.')
         return cls._model
+
+class SemanticVibeEngine:
+
+    def __init__(self, embeddings_path: Path=EMBEDDINGS_FILE, id_map_path: Path=ID_MAP_FILE, model_name: str=DEFAULT_MODEL_NAME):
+        self.embeddings_path = embeddings_path
+        self.id_map_path = id_map_path
+        self.model_name = model_name
+        self.embeddings: Optional[np.ndarray] = None
+        self.cafe_records: List[Dict[str, Any]] = []
+        self._load_index_if_exists()
+
+    def _load_index_if_exists(self) -> bool:
+        """Loads precomputed embeddings and ID map if available on disk."""
+        if self.embeddings_path.exists() and self.id_map_path.exists():
+            try:
+                self.embeddings = np.load(self.embeddings_path)
+                with open(self.id_map_path, 'r', encoding='utf-8') as f:
+                    self.cafe_records = json.load(f)
+                logger.info(f'Loaded precomputed SBERT index: {len(self.cafe_records)} cafes, embedding shape {self.embeddings.shape}')
+                return True
+            except Exception as e:
+                logger.warning(f'Failed to load cached index: {e}. Index will need rebuild.')
+        return False
