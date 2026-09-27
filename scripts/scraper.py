@@ -83,7 +83,20 @@ async def collect_reviews(page, cafe_id, limit):
     if await tab.count():
         await tab.first.click()
         await page.wait_for_timeout(1200)
-    return (await visible_reviews(page, cafe_id))[:limit]
+    found = {}
+    for attempt in range(5):
+        before = len(found)
+        for review in await visible_reviews(page, cafe_id):
+            found.setdefault(review['review_id'], review)
+        if len(found) >= limit or (attempt > 0 and len(found) == before):
+            break
+        cards = page.locator('[data-review-id]')
+        if not await cards.count():
+            break
+        await cards.last.scroll_into_view_if_needed()
+        await page.mouse.wheel(0, 700)
+        await page.wait_for_timeout(1200)
+    return list(found.values())[:limit]
 
 async def run_scraper(args):
     from playwright.async_api import async_playwright, TimeoutError as PageTimeout
