@@ -198,3 +198,36 @@ def compare_metrics(X: np.ndarray, df: pd.DataFrame, features: List[str], k_rang
     for k in k_range:
         # Euclidean
         _, sil_euclid, _ = train_and_evaluate(X, df, features, k=k, metric="euclidean")
+        logger.info(f"{k:<4} | {'Euclidean':<12} | {sil_euclid:<18.4f} | Optimal" if sil_euclid > 0.4 else f"{k:<4} | {'Euclidean':<12} | {sil_euclid:<18.4f} | Pass")
+
+        # Manhattan (Minkowski L1)
+        _, sil_manh, _ = train_and_evaluate(X, df, features, k=k, metric="manhattan")
+        logger.info(f"{k:<4} | {'Manhattan L1':<12} | {sil_manh:<18.4f} | Robust (Outliers)" if sil_manh > 0.35 else f"{k:<4} | {'Manhattan L1':<12} | {sil_manh:<18.4f} | Pass")
+    logger.info("=" * 60)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Cafind Cafe Clustering Module")
+    parser.add_argument("--metric", choices=["euclidean", "manhattan"], default="euclidean", help="Distance metric to use")
+    parser.add_argument("--k", type=int, default=4, help="Number of clusters (default: 4)")
+    parser.add_argument("--compare", action="store_true", help="Compare Euclidean vs Manhattan metrics across k=2..5")
+    parser.add_argument("--input", type=str, default=None, help="Path to input CSV file")
+    args = parser.parse_args()
+
+    input_path = Path(args.input) if args.input else None
+    df, X_scaled, features = load_features(input_path)
+
+    if args.compare:
+        compare_metrics(X_scaled, df, features)
+        return
+
+    logger.info(f"Training K-Means with metric='{args.metric}', K={args.k}...")
+    labels, sil, summary = train_and_evaluate(X_scaled, df, features, k=args.k, metric=args.metric)
+
+    logger.info(f"\nModel Silhouette Score ({args.metric}): {sil:.4f}")
+    logger.info("\nCluster Profile Summary:")
+    print(summary.to_string())
+
+
+if __name__ == "__main__":
+    main()
