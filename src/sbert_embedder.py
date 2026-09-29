@@ -63,3 +63,9 @@ class SemanticVibeEngine:
             except Exception as e:
                 logger.warning(f'Failed to load cached index: {e}. Index will need rebuild.')
         return False
+
+    @staticmethod
+    def construct_cafe_document(cafe, reviews, absa_summary=None):
+        parts = [str(cafe.get('name', '')), str(cafe.get('address', ''))]
+        parts.extend((str(review.get('text', '')) for review in reviews[:3]))
+        return ' '.join(parts).strip()
