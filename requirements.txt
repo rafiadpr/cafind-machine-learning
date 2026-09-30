@@ -1,0 +1,10 @@
+# ============================================================
+# Cafind ML — Python Dependencies
+# ============================================================
+
+# Browser automation (Google Maps scraper)
+playwright==1.49.0
+playwright-stealth>=2.0.0
+
+# Data handling
+pandas==2.2.3
