@@ -19,7 +19,15 @@ CAFE_FIELDS = ['cafe_id', 'name', 'address', 'latitude', 'longitude', 'rating',
 REVIEW_FIELDS = ['review_id', 'cafe_id', 'text', 'rating', 'scraped_at']
 
 async def first_text(locator, default=''):
-    return (await locator.first.inner_text()).strip() if await locator.count() else default
+    if not await locator.count():
+        return default
+    try:
+        return (await locator.first.inner_text(timeout=3000)).strip()
+    except Exception as error:
+        from playwright.async_api import TimeoutError as PageTimeout
+        if not isinstance(error, PageTimeout):
+            raise
+        return default
 
 async def collect_links(page, limit):
     links = {}
@@ -52,7 +60,7 @@ async def extract_cafe(page, query):
         raise ValueError('Cafe name is missing')
     latitude, longitude = parse_coords(page.url)
     rating_text = await first_text(page.locator('div.F7nice'))
-    return dict(cafe_id=hashlib.sha256(name.encode()).hexdigest()[:16], name=name,
+    return dict(cafe_id=hashlib.sha256((urlsplit(page.url).path + str(latitude) + str(longitude)).encode()).hexdigest()[:16], name=name,
                 address=await first_text(page.locator('[data-item-id="address"]')),
                 latitude=latitude, longitude=longitude, rating=parse_rating(rating_text),
                 review_count=None, source_url=page.url, source_query=query,
@@ -112,11 +120,15 @@ async def run_scraper(args):
 
             cafes, reviews = [], []
             for link in links:
-                await page.goto(link, wait_until='domcontentloaded')
-                await page.wait_for_timeout(1000)
-                cafe = await extract_cafe(page, args.query)
-                cafes.append(cafe)
-                reviews.extend(await collect_reviews(page, cafe['cafe_id'], args.reviews_per_cafe))
+                try:
+                    await page.goto(link, wait_until='domcontentloaded')
+                    await page.wait_for_timeout(1000)
+                    cafe = await extract_cafe(page, args.query)
+                    cafes.append(cafe)
+                    reviews.extend(await collect_reviews(page, cafe['cafe_id'], args.reviews_per_cafe))
+
+                except (PageTimeout, ValueError) as error:
+                    print(f'Skipping incomplete cafe {link}: {error}')
 
             args.output_dir.mkdir(parents=True, exist_ok=True)
             write_csv(args.output_dir / 'cafes.csv', CAFE_FIELDS, cafes)
