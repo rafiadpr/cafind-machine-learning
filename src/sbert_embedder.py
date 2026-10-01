@@ -69,3 +69,15 @@ class SemanticVibeEngine:
         parts = [str(cafe.get('name', '')), str(cafe.get('address', ''))]
         parts.extend((str(review.get('text', '')) for review in reviews[:3]))
         return ' '.join(parts).strip()
+
+    def build_and_save_index(self, cafe_documents):
+        if not cafe_documents:
+            raise ValueError('No cafe documents provided for indexing')
+        model = SBERTModelManager.get_model(self.model_name)
+        self.embeddings = model.encode([doc['document_text'] for doc in cafe_documents], normalize_embeddings=True, convert_to_numpy=True)
+        self.cafe_records = [dict(doc, cafe_id=str(doc['cafe_id'])) for doc in cafe_documents]
+        self.embeddings_path.parent.mkdir(parents=True, exist_ok=True)
+        self.id_map_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(self.embeddings_path, self.embeddings)
+        self.id_map_path.write_text(json.dumps(self.cafe_records, ensure_ascii=False), encoding='utf-8')
+        return (self.embeddings, self.cafe_records)
