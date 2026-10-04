@@ -29,3 +29,63 @@ class ABSAPipeline:
         for aspect, terms in ASPECT_LEXICONS.items():
             compiled[aspect] = [re.compile('\\b' + re.escape(kw) + '\\b', re.IGNORECASE) for kw in terms]
         return compiled
+
+    def _split_into_clauses(self, text: str) -> List[str]:
+        """Splits full review text into semantic clauses using punctuation and conjunctions."""
+        delims = '[.,;!?\\n\\r]+|\\b(?:tetapi|tapi|namun|sedangkan|padahal|walaupun|meskipun)\\b'
+        raw_clauses = re.split(delims, text, flags=re.IGNORECASE)
+        cleaned = [c.strip() for c in raw_clauses if len(c.strip()) > 2]
+        return cleaned if cleaned else [text.strip()]
+
+    def analyze_clause_sentiment(self, clause: str, target_aspect: str) -> Tuple[str, float]:
+        """
+        Calculates sentiment polarity and confidence for a single clause
+        targeting a specific aspect.
+        """
+        tokens = re.findall('\\b\\w+\\b', clause.lower())
+        if not tokens:
+            return ('neutral', 0.6)
+        pos_score = 0.0
+        neg_score = 0.0
+        for i, word in enumerate(tokens):
+            prev_window = tokens[max(0, i - 2):i]
+            is_negated = any((neg in NEGATION_TERMS for neg in prev_window))
+            next_window = tokens[i + 1:min(len(tokens), i + 3)]
+            is_intensified = any((intens in INTENSIFIERS for intens in prev_window)) or any((intens in INTENSIFIERS for intens in next_window))
+            weight = 1.4 if is_intensified else 1.0
+            if word in POSITIVE_TERMS:
+                if is_negated:
+                    neg_score += 1.2 * weight
+                else:
+                    pos_score += 1.0 * weight
+            elif word in NEGATIVE_TERMS:
+                if is_negated:
+                    pos_score += 1.1 * weight
+                else:
+                    neg_score += 1.2 * weight
+        if target_aspect == 'facility':
+            if 'banyak' in tokens and any((w in tokens for w in ['colokan', 'stopkontak', 'kursi', 'meja'])):
+                pos_score += 1.5
+            if 'kencang' in tokens or 'kenceng' in tokens or 'cepat' in tokens:
+                pos_score += 1.5
+            if 'susah' in tokens or 'jarang' in tokens or 'dikit' in tokens:
+                neg_score += 1.5
+        if target_aspect == 'price':
+            if any((w in tokens for w in ['terjangkau', 'murah', 'ramah', 'hemat', 'pas'])):
+                if not any((neg in NEGATION_TERMS for neg in tokens[:3])):
+                    pos_score += 1.5
+            if any((w in tokens for w in ['mahal', 'pricey', 'kemahalan'])):
+                if not any((neg in NEGATION_TERMS for neg in tokens[:3])):
+                    neg_score += 1.5
+        diff = pos_score - neg_score
+        total = pos_score + neg_score
+        if total == 0:
+            return ('neutral', 0.7)
+        if diff > 0.3:
+            conf = min(0.98, 0.75 + diff / (total + 1.0) * 0.23)
+            return ('positive', round(conf, 4))
+        elif diff < -0.3:
+            conf = min(0.98, 0.75 + abs(diff) / (total + 1.0) * 0.23)
+            return ('negative', round(conf, 4))
+        else:
+            return ('neutral', 0.72)
