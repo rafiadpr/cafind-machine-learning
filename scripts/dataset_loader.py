@@ -198,3 +198,124 @@ def load_as_places_only(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
         name = str(row[col["name"]]).strip()
         address_val = str(row[col["address"]]).lower() if col["address"] else ""
         in_Malang = any(k in address_val or k in name.lower() for k in Malang_KEYWORDS)
+        is_cafe = any(k in name.lower() for k in CAFE_KEYWORDS)
+        if not in_Malang or not is_cafe:
+            continue
+
+        cafes_out.append({
+            "cafe_id": str(uuid.uuid4()),
+            "name": name,
+            "address": str(row[col["address"]]).strip() if col["address"] else "",
+            "latitude": safe_float(row[col["latitude"]]) if col["latitude"] else None,
+            "longitude": safe_float(row[col["longitude"]]) if col["longitude"] else None,
+            "rating": safe_float(row[col["rating"]]) if col["rating"] else None,
+            "review_count": safe_int(row[col["review_count"]]) if col["review_count"] else 0,
+            "categories": str(row[col["categories"]]).strip() if col["categories"] else "",
+            "phone": str(row[col["phone"]]).strip() if col["phone"] else "",
+            "website": str(row[col["website"]]).strip() if col["website"] else "",
+            "scraped_at": datetime.utcnow().isoformat(),
+            "source_query": "kaggle_dataset",
+        })
+
+    return cafes_out, []
+
+
+def write_output(cafes: list[dict], reviews: list[dict], append: bool) -> None:
+    """Write (or append) cafes and reviews to the canonical CSV files."""
+    DATA_RAW.mkdir(parents=True, exist_ok=True)
+    mode = "a" if append else "w"
+
+    with open(CAFES_CSV, mode, newline="", encoding="utf-8") as f:
+        # pyrefly: ignore [missing-import]
+        from machine_learning_constants import CAFE_FIELDS
+        writer = csv.DictWriter(f, fieldnames=CAFE_FIELDS)
+        if not append:
+            writer.writeheader()
+        writer.writerows(cafes)
+
+    with open(REVIEWS_CSV, mode, newline="", encoding="utf-8") as f:
+        # pyrefly: ignore [missing-import]
+        from machine_learning_constants import REVIEW_FIELDS
+        writer = csv.DictWriter(f, fieldnames=REVIEW_FIELDS)
+        if not append:
+            writer.writeheader()
+        writer.writerows(reviews)
+
+
+# ─── CLI ──────────────────────────────────────────────────────────────────────
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Load a Kaggle dataset into Cafind's canonical CSV schema"
+    )
+    parser.add_argument(
+        "--input", "-i",
+        required=True,
+        help="Path to the Kaggle CSV file (relative to machine_learning/ or absolute)"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["places_and_reviews", "places_only"],
+        default="places_and_reviews",
+        help="Dataset structure: 'places_and_reviews' (one row = one review) or 'places_only'"
+    )
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to existing cafes.csv / reviews.csv instead of overwriting"
+    )
+    parser.add_argument(
+        "--encoding",
+        default="utf-8",
+        help="CSV file encoding (default: utf-8). Try 'latin-1' if you get UnicodeDecodeError"
+    )
+    args = parser.parse_args()
+
+    input_path = Path(args.input)
+    if not input_path.is_absolute():
+        input_path = BASE_DIR / input_path
+
+    if not input_path.exists():
+        log.error(f"File not found: {input_path}")
+        sys.exit(1)
+
+    log.info(f"Loading dataset: {input_path}")
+    df = pd.read_csv(input_path, encoding=args.encoding, low_memory=False)
+    log.info(f"  Rows: {len(df):,} | Columns: {list(df.columns)}")
+
+    if args.mode == "places_and_reviews":
+        cafes, reviews = load_as_places_and_reviews(df)
+    else:
+        cafes, reviews = load_as_places_only(df)
+
+    # Write using simple CSV (avoid circular import from constants)
+    DATA_RAW.mkdir(parents=True, exist_ok=True)
+    mode = "a" if args.append else "w"
+
+    CAFE_FIELDS = ["cafe_id","name","address","latitude","longitude","rating","review_count","categories","phone","website","scraped_at","source_query"]
+    REVIEW_FIELDS = ["review_id","cafe_id","author_name","rating","text","published_at","likes","scraped_at"]
+
+    with open(CAFES_CSV, mode, newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CAFE_FIELDS)
+        if not args.append:
+            writer.writeheader()
+        writer.writerows(cafes)
+
+    with open(REVIEWS_CSV, mode, newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=REVIEW_FIELDS)
+        if not args.append:
+            writer.writeheader()
+        writer.writerows(reviews)
+
+    log.info("\nDataset loaded successfully!")
+    log.info(f"   Cafes   : {len(cafes):,}  -> {CAFES_CSV}")
+    log.info(f"   Reviews : {len(reviews):,}  -> {REVIEWS_CSV}")
+
+    if cafes:
+        log.info("\nSample cafes loaded:")
+        for c in cafes[:5]:
+            log.info(f"  * {c['name']} | {c['address'][:50]} | Rating:{c['rating']}")
+
+
+if __name__ == "__main__":
+    main()
