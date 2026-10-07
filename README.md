@@ -38,3 +38,19 @@ Provide `cafes.csv` in the kernel working directory, or set `DATA_PATH` before
 running the first code cell. Numeric input fields are `latitude`, `longitude`,
 `rating`, and `review_count`. Set `FIGURES_DIR` to choose an output directory.
 
+## Local aspect and search preview
+
+Input is a JSON list of cafes containing `cafe_id`, `name`, and review strings.
+
+```bash
+python scripts/run_absa_and_sbert.py --input cafes.json --query "tempat nyaman"
+```
+
+The first embedding run needs the model download unless it is already cached.
+One aspect filter is supported. Multiple aspect filters, advanced ranking,
+and database synchronization are still under development.
+
+## Development
+
+Keep model weights, credentials, browser profiles, and large datasets local.
+Check results on the intended dataset before using experiment measurements.
