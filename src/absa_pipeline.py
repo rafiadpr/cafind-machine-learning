@@ -89,3 +89,43 @@ class ABSAPipeline:
             return ('negative', round(conf, 4))
         else:
             return ('neutral', 0.72)
+
+    def extract_aspects(self, text: str) -> List[AspectResult]:
+        """
+        Extracts aspects mentioned in the review text and determines their polarity.
+        Returns a list of AspectResult (up to 4, one per detected aspect).
+        """
+        if not text or not isinstance(text, str):
+            return []
+        clauses = self._split_into_clauses(text)
+        aspect_matches: Dict[str, List[Tuple[str, str, float]]] = {a: [] for a in ASPECT_LEXICONS}
+        for clause in clauses:
+            for aspect, patterns in self.compiled_aspects.items():
+                if any((p.search(clause) for p in patterns)):
+                    sentiment, conf = self.analyze_clause_sentiment(clause, aspect)
+                    aspect_matches[aspect].append((clause, sentiment, conf))
+        results: List[AspectResult] = []
+        for aspect, matches in aspect_matches.items():
+            if not matches:
+                continue
+            pos_confs = [c for cl, s, c in matches if s == 'positive']
+            neg_confs = [c for cl, s, c in matches if s == 'negative']
+            neu_confs = [c for cl, s, c in matches if s == 'neutral']
+            if len(pos_confs) > len(neg_confs):
+                final_sentiment = 'positive'
+                final_conf = max(pos_confs)
+            elif len(neg_confs) > len(pos_confs):
+                final_sentiment = 'negative'
+                final_conf = max(neg_confs)
+            elif pos_confs and (not neg_confs):
+                final_sentiment = 'positive'
+                final_conf = max(pos_confs)
+            elif neg_confs and (not pos_confs):
+                final_sentiment = 'negative'
+                final_conf = max(neg_confs)
+            else:
+                final_sentiment = 'neutral'
+                final_conf = 0.7
+            evidence_clause = matches[0][0]
+            results.append(AspectResult(aspect=aspect, sentiment=final_sentiment, confidence=final_conf, evidence=evidence_clause))
+        return results
