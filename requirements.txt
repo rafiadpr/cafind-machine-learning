@@ -1,0 +1,49 @@
+# ============================================================
+# Cafind ML — Python Dependencies
+# ============================================================
+
+# Browser automation (Google Maps scraper)
+playwright==1.49.0
+playwright-stealth>=2.0.0
+
+# Data handling
+pandas==2.2.3
+numpy==1.26.4
+
+# Progress bars
+tqdm==4.67.1
+
+# NLP / ML core
+transformers==4.46.3
+torch==2.5.1
+sentencepiece==0.2.0
+protobuf==5.28.3
+
+# Sentence embeddings (SBERT)
+sentence-transformers==3.3.1
+
+# Scikit-learn & Clustering
+scikit-learn>=1.5.2
+scikit-learn-extra==0.3.0  # K-Medoids Manhattan sesuai notebook UTS
+matplotlib>=3.8
+hdbscan>=0.8.40
+
+# FAISS — vector index for fast semantic search
+# Use faiss-cpu on machines without a GPU
+faiss-cpu==1.9.0
+
+# Text cleaning
+regex==2024.11.6
+Sastrawi==1.0.1          # Indonesian stemmer
+
+# Dataset utilities
+datasets==3.2.0           # HuggingFace datasets hub
+pyarrow==17.0.0           # Compatible with the NumPy 1.26 environment above
+
+# Jupyter support (for notebooks)
+jupyter==1.1.1
+ipykernel==6.29.5
+
+# Utilities
+python-dotenv==1.0.1
+loguru==0.7.3
