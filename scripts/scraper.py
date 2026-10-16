@@ -1,4 +1,3 @@
-
 """Single-query scraper preview. Resume, multi-query jobs and backend sync are pending.
 
 Only visible Google Maps results/reviews are collected. CSV files replace the
@@ -107,7 +106,7 @@ async def collect_reviews(page, cafe_id, limit):
     return list(found.values())[:limit]
 
 async def run_scraper(args):
-    from playwright.async_api import async_playwright, TimeoutError as PageTimeout
+    from playwright.async_api import async_playwright, Error as BrowserError
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(headless=args.headless)
         try:
@@ -127,7 +126,7 @@ async def run_scraper(args):
                     cafes.append(cafe)
                     reviews.extend(await collect_reviews(page, cafe['cafe_id'], args.reviews_per_cafe))
 
-                except (PageTimeout, ValueError) as error:
+                except (BrowserError, ValueError) as error:
                     print(f'Skipping incomplete cafe {link}: {error}')
 
             args.output_dir.mkdir(parents=True, exist_ok=True)
