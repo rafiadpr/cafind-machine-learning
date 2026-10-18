@@ -66,7 +66,7 @@ class ABSAPipeline:
         if target_aspect == 'facility':
             if 'banyak' in tokens and any((w in tokens for w in ['colokan', 'stopkontak', 'kursi', 'meja'])):
                 pos_score += 1.5
-            if 'kencang' in tokens or 'kenceng' in tokens or 'cepat' in tokens:
+            if any(word in {'kencang', 'kenceng', 'cepat'} and not any(term in NEGATION_TERMS for term in tokens[max(0, index - 2):index]) for index, word in enumerate(tokens)):
                 pos_score += 1.5
             if 'susah' in tokens or 'jarang' in tokens or 'dikit' in tokens:
                 neg_score += 1.5
