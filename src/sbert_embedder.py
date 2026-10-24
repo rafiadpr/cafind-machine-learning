@@ -65,46 +65,49 @@ class SemanticVibeEngine:
         return False
 
     @staticmethod
-    def construct_cafe_document(cafe, reviews, absa_summary=None):
-        parts = [str(cafe.get('name', '')), str(cafe.get('address', ''))]
-        parts.extend((str(review.get('text', '')) for review in reviews[:3]))
-        return ' '.join(parts).strip()
+    def construct_cafe_document(
+        cafe: Dict[str, Any],
+        reviews: List[Dict[str, Any]],
+        absa_summary: Optional[Dict[str, str]] = None
+    ) -> str:
+        """
+        Creates a dense textual representation combining cafe name, categories,
+        address, positive ABSA vibes, and representative review snippets.
+        """
+        name = cafe.get("name", "")
+        address = cafe.get("address", "")
+        categories = cafe.get("categories", [])
+        if isinstance(categories, list):
+            cat_str = ", ".join(categories)
+        else:
+            cat_str = str(categories)
 
-    def build_and_save_index(self, cafe_documents):
-        if not cafe_documents:
-            raise ValueError('No cafe documents provided for indexing')
-        model = SBERTModelManager.get_model(self.model_name)
-        self.embeddings = model.encode([doc['document_text'] for doc in cafe_documents], normalize_embeddings=True, convert_to_numpy=True)
-        self.cafe_records = [dict(doc, cafe_id=str(doc['cafe_id'])) for doc in cafe_documents]
-        self.embeddings_path.parent.mkdir(parents=True, exist_ok=True)
-        self.id_map_path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(self.embeddings_path, self.embeddings)
-        self.id_map_path.write_text(json.dumps(self.cafe_records, ensure_ascii=False), encoding='utf-8')
-        return (self.embeddings, self.cafe_records)
+        # ABSA vibe descriptors
+        vibe_phrases = []
+        if absa_summary:
+            if absa_summary.get("ambience") == "positive":
+                vibe_phrases.append("suasana nyaman, estetik, tempat santai, adem")
+            if absa_summary.get("facility") == "positive":
+                vibe_phrases.append("fasilitas lengkap, wifi kencang, colokan banyak, cocok nugas wfc")
+            if absa_summary.get("price") == "positive":
+                vibe_phrases.append("harga murah, terjangkau, ramah kantong mahasiswa")
+            if absa_summary.get("food_beverage") == "positive":
+                vibe_phrases.append("kopi enak, menu makanan lezat, minuman berkualitas")
 
-    def search_vibe(self, query, aspect_filters=None, limit=10, min_similarity=0.15):
-        if not query or not query.strip():
-            return []
-        if limit < 1:
-            raise ValueError('Limit must be positive')
-        if aspect_filters:
-            if len(aspect_filters) > 1:
-                raise NotImplementedError('This preview supports one aspect filter only')
-            for aspect, sentiment in aspect_filters.items():
-                if aspect not in {'ambience', 'facility', 'price', 'food_beverage'} or sentiment not in {'positive', 'negative', 'neutral'}:
-                    raise ValueError('Unknown aspect or sentiment')
-        if self.embeddings is None and (not self._load_index_if_exists()):
-            raise RuntimeError('Build the cafe embedding index first')
-        if len(self.cafe_records) != len(self.embeddings):
-            raise ValueError('Embedding index and cafe records do not match')
-        model = SBERTModelManager.get_model(self.model_name)
-        vector = model.encode([query.strip()], normalize_embeddings=True, convert_to_numpy=True)[0]
-        similarities = np.dot(self.embeddings, vector)
-        results = []
-        for record, similarity in zip(self.cafe_records, similarities):
-            profile = record.get('absa_profile', {})
-            if aspect_filters and any((profile.get(aspect) != sentiment for aspect, sentiment in aspect_filters.items())):
-                continue
-            if float(similarity) >= min_similarity:
-                results.append(dict(record, similarity_score=round(float(similarity), 4), final_score=round(float(similarity), 4)))
-        return sorted(results, key=lambda result: result['final_score'], reverse=True)[:limit]
+        # Select top informative reviews (prioritize higher rating and substantive length)
+        selected_reviews = []
+        for r in reviews:
+            text = r.get("text", "")
+            if len(text.strip()) > 15:
+                selected_reviews.append(text.strip())
+            if len(selected_reviews) >= 8:
+                break
+
+        doc_parts = [
+            f"Kafe {name}.",
+            f"Kategori: {cat_str}." if cat_str else "",
+            f"Alamat di {address}." if address else "",
+            f"Karakteristik suasana: {', '.join(vibe_phrases)}." if vibe_phrases else "",
+            "Ulasan pelanggan: " + " ".join(selected_reviews) if selected_reviews else ""
+        ]
+        return " ".join([p for p in doc_parts if p]).strip()
