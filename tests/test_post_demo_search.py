@@ -28,3 +28,12 @@ class FilterTests(unittest.TestCase):
                 loaded.search_vibe('wifi', aspect_filters={'facility': 'positive', 'price': 'positive'})
             with self.assertRaises(ValueError):
                 loaded.search_vibe('wifi', limit=0)
+                
+    def test_document_includes_positive_facility(self):
+        document = SemanticVibeEngine.construct_cafe_document(
+            {"name": "Cafe A"},
+            [],
+            {"facility": "positive"},
+        )
+
+        self.assertIn("wifi kencang", document)
