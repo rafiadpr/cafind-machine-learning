@@ -157,3 +157,38 @@ def aggregate_cafe_vibes(
     return df_result
 
 
+def main():
+    parser = argparse.ArgumentParser(description="Cafind Vibe Keyword Extraction")
+    parser.add_argument("--input", type=str, default=None, help="Path to reviews CSV")
+    parser.add_argument("--output", type=str, default=None, help="Path to output CSV")
+    parser.add_argument("--threshold", type=int, default=1, help="Min keyword hits to assign tag (default: 1)")
+    args = parser.parse_args()
+
+    input_file = Path(args.input) if args.input else DEFAULT_REVIEWS_FILE
+    output_file = Path(args.output) if args.output else DEFAULT_OUTPUT_FILE
+
+    if input_file.exists():
+        logger.info(f"Loading reviews from: {input_file}")
+        df_reviews = pd.read_csv(input_file)
+        text_column = "text" if "text" in df_reviews.columns else "review_text"
+    else:
+        logger.warning(f"File '{input_file}' not found. Using representative sample reviews.")
+        df_reviews = generate_sample_reviews()
+        text_column = "review_text"
+
+    df_tagged = aggregate_cafe_vibes(
+        df_reviews,
+        text_col=text_column,
+        min_keyword_hits=args.threshold
+    )
+
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    df_tagged.to_csv(output_file, index=False)
+    logger.info(f"Saved tagged cafes to: {output_file}")
+
+    print("\nSample Vibe Tagging Results:")
+    print(df_tagged[["cafe_name", "primary_vibe", "vibe_tags"]].head(10).to_string())
+
+
+if __name__ == "__main__":
+    main()

@@ -298,3 +298,40 @@ def run() -> None:
             "  python scripts/scraper.py\n"
             "Or load a Kaggle dataset:\n"
             "  python scripts/dataset_loader.py --input data/raw/your_dataset.csv"
+        )
+        sys.exit(1)
+
+    df_cafes = pd.read_csv(CAFES_CSV)
+    df_reviews = pd.read_csv(REVIEWS_CSV)
+
+    log.info(f"Raw data loaded: {len(df_cafes)} cafes, {len(df_reviews)} reviews")
+
+    # ── Process ──
+    df_cafes_clean = preprocess_cafes(df_cafes)
+    df_reviews_clean = preprocess_reviews(df_reviews)
+
+    # Only keep reviews for cafes that survived dedup
+    valid_cafe_ids = set(df_cafes_clean["cafe_id"])
+    df_reviews_clean = df_reviews_clean[
+        df_reviews_clean["cafe_id"].isin(valid_cafe_ids)
+    ].reset_index(drop=True)
+
+    df_absa = create_absa_template(df_reviews_clean)
+
+    # ── Save ──
+    df_cafes_clean.to_csv(CAFES_CLEAN, index=False)
+    df_reviews_clean.to_csv(REVIEWS_CLEAN, index=False)
+    df_absa.to_csv(ABSA_TRAIN, index=False)
+
+    log.info("\nPreprocessing complete!")
+    log.info(f"  Cafes   : {len(df_cafes_clean):,}  -> {CAFES_CLEAN}")
+    log.info(f"  Reviews : {len(df_reviews_clean):,}  -> {REVIEWS_CLEAN}")
+    log.info(f"  ABSA template: {len(df_absa):,} rows  -> {ABSA_TRAIN}")
+    log.info(
+        "\nNext step: manually label a subset in data/labeled/ for ABSA training,\n"
+        "or run weak supervision in train_absa.py"
+    )
+
+
+if __name__ == "__main__":
+    run()
